@@ -1,0 +1,559 @@
+---
+title: "Luxury Automobile"
+execute:
+  echo: false
+  freeze: auto  # Caches results unless input changes
+format:
+  html:
+    embed-resources: true
+    self-contained: true  # Embeds plots & data within HTML
+    smooth-scroll: true
+    theme: cosmo
+    toc: true
+    toc-location: left
+    toc-title: Summary
+    toc-depth: 3
+    df-print: paged  # Improves table display
+runtime: auto  # Use "shiny" only if needed
+---
+
+<style>
+  body {
+    font-size: 12pt;
+  }
+</style>
+
+
+## Industry overview
+
+In 2024, the global market for luxury cars was [estimated](https://www.statista.com/statistics/281574/size-of-the-luxury-car-market/#:~:text=In%202024%2C%20the%20global%20market%20for%20luxury%20cars,market%20was%20put%20at%20around%201.48%20trillion%20euros) at around 579 billion euros, an estimated increase of around 8.8 percent year-on-year. That same year, the global luxury market was put at around 1.48 trillion euros, of which the automobile sector represents over one third. The following report aims to provide insight over the brands Aston Martin, Maserati, Mclaren, Bentley, Lamborghini, BYD, Ferrari and Porsche, naively comparing their financial results, based on the premise that these manufacturers have something in common, whether it is regarding theur segment, popularity or financial performance.
+
+
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+## Loading libraries 
+library(shiny)
+library(ggplot2)
+library(plotly)
+library(dplyr)  # For data filtering
+library(lubridate)
+library(readr)
+library(readxl)
+library(RColorBrewer)
+
+#rsconnect::setAccountInfo(name='inesramos',
+#			  token='431457FB70D4200F10BE4DD0811EEE1B',
+#			  secret='ZVzUM43UyWjnkZNOSZHTcXaq4LFosw6i13uI3oVS')
+library(rsconnect)
+
+    
+```
+
+## Financial statements:
+
+### Growth over the years
+
+There is a big gap between some of the brands' results, due of course to the different business volume each one operates. To overcome scale differences during visualization, the following graph shows normalized values. It intends to only represent the line of growth over the years. To effectively compare companies, the reader should only use this graph to evaluate slopes, and be aware that revenue is mainly a sales indicator.
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+
+
+# Read the dataset (assuming it's a CSV file)
+financials <- read_excel("C:\\Users\\ines.ramos\\OneDrive - XRS Holding\\Documents\\projetos\\mercado\\rev+ebit.xlsx")
+
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, output=FALSE, results='hide'}
+
+# Load Libraries
+library(dplyr)
+library(shiny)
+library(ggplot2)
+financials <- financials %>%
+  rename(
+    Company = Comapny,   # NewName = OldName
+  )
+# Data Cleaning and Normalization
+data_clean <- financials %>%
+  filter(!is.na(Revenue)) %>%        # Remove null values
+  group_by(Company) %>%
+  mutate(NormalizedRevenue = Revenue / Revenue[Year == 2020]  * 100)  # Normalize to 100
+
+head(data_clean)
+
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Plotting
+data_clean <- data_clean %>% filter(Company != "BYD")
+
+p <- ggplot(data_clean, aes(x = Year, y = NormalizedRevenue, color = Company, group = Company)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  scale_y_continuous(name = "Growth Index (Base = 100)") +
+  labs(
+    title = "Revenue Growth by Company (Normalized)",
+    subtitle = "Growth indexed to 100 in 2020",
+    x = "Year",
+    y = "Growth Index"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    axis.title = element_text(size = 12)
+  )
+interactive_plot <- ggplotly(p)
+interactive_plot 
+```
+
+**A critical look at Maserati's results [here](https://www.italpassion.fr/en/maserati/maserati-figures-2024-the-brand-senfonce-in-the-red-when-the-electroshock/#:~:text=Indeed%2C%20the%20he%20brand%20recorded%20a%20loss%20of,posted%20an%20overall%20profit%20of%20141%20million%20euro) **
+
+With the steadiest slope, Ferrari and Lamborghini show signs of a sustainable growth. On the contrary, companies like Maserati, Bentley and Aston Martin might require further analysis.
+
+### The actual values
+
+When the scale is managed by BYD's incomparable growth as in the following graph, others show little amount revenue. One is inclined to wonder if the only reason some companies manage to have positive revenue is because of the definition of revenue itself.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Load necessary libraries
+library(dplyr)
+library(shiny)
+library(ggplot2)
+library(scales)  # Ensure the scales package is loaded
+
+# Define a distinct color palette
+
+
+# Plot without Normalization
+p <- ggplot(data_clean, aes(x = Year, y = Revenue, color = Company, group = Company))  +
+  geom_line(size = 1.2) +
+  geom_point(size = 3) +
+  scale_color_manual(values = if (length(unique(data_clean$Company)) <= 9) {
+  brewer.pal(n = length(unique(data_clean$Company)), name = "Set1")  # Use Set1 for up to 9 colors
+} else {
+  colorRampPalette(brewer.pal(9, "Set1"))(max_colors)  # Generate more colors
+}) +
+  scale_y_continuous(name = "Revenue",
+                      labels = label_number(scale = 1e-9, suffix = "B")
+                                                 ) +
+  labs(
+    title = "Revenue by Company (2020-2024)",
+    subtitle = "Actual revenue values over time",
+    x = "Year",
+    y = "Revenue"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    axis.title = element_text(size = 12)
+  )
+interactive_plot <- ggplotly(p)
+interactive_plot 
+```
+
+In the next two plots we will take a look at units sold per year per brand in order to compare revenues more fairly.
+
+### Units sold over the years
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+
+# Read the dataset
+# Assuming the dataset is saved as 'Units2017-2024.xlsx'
+dataset <- read_xlsx("C:\\Users\\ines.ramos\\OneDrive - XRS Holding\\Documents\\projetos\\mercado\\Units2017-2024.xlsx")
+dataset$UNITS <- as.numeric(gsub(",", "", dataset$UNITS))  # Remove commas and convert to numeric
+
+# Filter out BYD
+dataset <- dataset %>% filter(COMPANY != "BYD")
+num_companies <- length(unique(dataset$COMPANY))
+color_palette <- if (num_companies <= 9) {
+  brewer.pal(n = num_companies, name = "Set1")  # Use Set1 for up to 9 colors
+} else {
+  colorRampPalette(brewer.pal(9, "Set1"))(num_companies)  # Generate more colors
+}
+
+# Plotting
+p <- ggplot(dataset, aes(x = YEAR, y = UNITS, color = COMPANY, group = COMPANY))+
+  scale_color_manual(values = color_palette) +
+  geom_line(size = 1.2) +
+  geom_point(size = 3) +
+  theme_minimal() +
+  labs(title = "Car Sales Over Time", x = "Year", y = "Units Sold") +
+  scale_y_continuous(labels = scales::comma) +
+  theme(
+    plot.title = element_text(size = 18, face = "bold"),
+    axis.title = element_text(size = 14),
+    legend.title = element_blank()
+  )
+
+interactive_plot <- ggplotly(p)
+interactive_plot 
+
+```
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+
+# Filter out BYD
+dataset <- dataset %>% filter(COMPANY != "BYD")
+dataset <- dataset %>% filter(COMPANY != "Porsche")
+
+# Plotting
+p <- ggplot(dataset, aes(x = YEAR, y = UNITS, color = COMPANY, group = COMPANY))+
+  scale_color_manual(values = if (length(unique(data_clean$Company)) <= 9) {
+  brewer.pal(n = length(unique(data_clean$Company)), name = "Set1")  # Use Set1 for up to 9 colors
+} else {
+  colorRampPalette(brewer.pal(9, "Set1"))(length(unique(data_clean$Company)))  # Generate more colors
+})  +
+  geom_line(size = 1.2) +
+  geom_point(size = 3) +
+  theme_minimal() +
+  labs(title = "Car Sales Over Time (Excluding Porsche)", x = "Year", y = "Units Sold") +
+  scale_y_continuous(labels = scales::comma) +
+  theme(
+    plot.title = element_text(size = 18, face = "bold"),
+    axis.title = element_text(size = 14),
+    legend.title = element_blank()
+  )
+
+interactive_plot <- ggplotly(p)
+interactive_plot 
+
+```
+
+And now we look at Revenue without Porsche:
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+data_clean2 <- data_clean
+library(scales)  # For formatting functions
+
+# Filter out BYD
+data_clean2 <- data_clean2 %>% filter(Company != "BYD") 
+data_clean2 <- data_clean2 %>% filter(Company != "Porsche")
+
+p <- ggplot(data_clean2, aes(x = Year, y = `Operating Profit`, color = Company, group = Company)) +
+  scale_color_manual(values = if (length(unique(data_clean$Company)) <= 9) {
+  brewer.pal(n = length(unique(data_clean$Company)), name = "Set1")  # Use Set1 for up to 9 colors
+} else {
+  colorRampPalette(brewer.pal(9, "Set1"))(length(unique(data_clean$Company)))  # Generate more colors
+})  +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey") +
+  scale_y_continuous(
+    name = "EBIT (Including Negative Values)",
+    labels = label_number(scale = 1e-9, suffix = "B")  # Display in billions
+  ) +
+  labs(
+    title = "EBIT Over Time by Company (Excluding Porsche)",
+    subtitle = "Includes Positive and Negative EBIT Values",
+    x = "Year",
+    y = "EBIT"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    axis.title = element_text(size = 12)
+  )
+
+interactive_plot <- ggplotly(p)
+interactive_plot 
+
+```
+
+# Stock Market
+
+Not always, but sometimes, actual growth is followed by stock price. As we know, however, Mr Market as been diagnosed with bipolarity and irrationality so one can only advise skepticism.
+
+### Ferrari
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Read the dataset (assuming it's a CSV file)
+df <- read_csv("C:\\Users\\ines.ramos\\OneDrive - XRS Holding\\Documents\\projetos\\mercado\\stock prives 3y\\Ferrari NV Stock Price History.csv")
+
+# Convert date column if needed (assuming there's a 'date' column)
+df$Date <- as.Date(df$Date, format = "%m/%d/%Y")
+
+df$Date <- as.Date(df$Date)
+
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+p <- ggplot(df, aes(x = Date, y = Price)) +
+  geom_line(color = "blue", linewidth = 1) +
+  labs(title = "Stock Price Trend",
+       x = "Date",
+       y = "Price") +
+  theme_minimal()
+
+# Convert to an interactive plot
+interactive_plot <- ggplotly(p)
+
+# Filter Data for Different Time Ranges
+df_3y <- df %>% filter(Date >= max(Date) - years(3))
+df_2y <- df %>% filter(Date >= max(Date) - years(2))
+df_6m <- df %>% filter(Date >= max(Date) - months(6))
+
+# Create Interactive Plotly Graph with Buttons
+plot <- plot_ly(df, x = ~Date, y = ~Price, type = 'scatter', mode = 'lines', name = "Full Data") %>%
+  layout(
+    title = "Ferrari Stock Price Trend (euros)",
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "Price"),
+    updatemenus = list(
+      list(
+        buttons = list(
+          list(method = "restyle", args = list("x", list(df$Date), "y", list(df$Price)), label = "All Time"),
+          list(method = "restyle", args = list("x", list(df_3y$Date), "y", list(df_3y$Price)), label = "3Y"),
+          list(method = "restyle", args = list("x", list(df_2y$Date), "y", list(df_2y$Price)), label = "2Y"),
+          list(method = "restyle", args = list("x", list(df_6m$Date), "y", list(df_6m$Price)), label = "6M")
+        ),
+        direction = "down",
+        x = 0.1,
+        y = 1.15
+      )
+    )
+  )
+
+plot  # Display the interactive graph
+
+
+```
+
+### Prosche AG
+
+Nota: stock price only available since 29/09/2022
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Read the dataset (assuming it's a CSV file)
+df <- read_csv("C:\\Users\\ines.ramos\\OneDrive - XRS Holding\\Documents\\projetos\\mercado\\stock prives 3y\\AG Porsche Stock Price History.csv")
+
+# Convert date column if needed (assuming there's a 'date' column)
+df$Date <- as.Date(df$Date, format = "%m/%d/%Y")
+
+
+df$Date <- as.Date(df$Date)
+
+
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Filter Data for Different Time Ranges
+df_3y <- df %>% filter(Date >= max(Date) - years(3))
+df_2y <- df %>% filter(Date >= max(Date) - years(2))
+df_6m <- df %>% filter(Date >= max(Date) - months(6))
+
+# Create Interactive Plotly Graph with Buttons
+plot <- plot_ly(df, x = ~Date, y = ~Price, type = 'scatter', mode = 'lines', name = "Full Data") %>%
+  layout(
+    title = "Porshche Stock Price Trend",
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "Price"),
+    updatemenus = list(
+      list(
+        buttons = list(
+          list(method = "restyle", args = list("x", list(df$Date), "y", list(df$Price)), label = "All Time"),
+          list(method = "restyle", args = list("x", list(df_3y$Date), "y", list(df_3y$Price)), label = "3Y"),
+          list(method = "restyle", args = list("x", list(df_2y$Date), "y", list(df_2y$Price)), label = "2Y"),
+          list(method = "restyle", args = list("x", list(df_6m$Date), "y", list(df_6m$Price)), label = "6M")
+        ),
+        direction = "down",
+        x = 0.1,
+        y = 1.15
+      )
+    )
+  )
+
+plot  # Display the interactive graph
+
+
+```
+
+### Maserati (Stellantis)
+
+« Tavares [told](https://www.thesun.co.uk/motors/33615127/iconic-sports-car-brand-future-scrapped-models/?utm_source=chatgpt.com) Top Gear: "Maserati is in the red. The reason is marketing.
+
+"The Maserati brand is not clearly positioned and the storytelling is not how it should be.
+
+"The brand is not just about sports cars, it's about gran turismo, it's about quality of life, dolce vita and technology." »
+
+Here is the price history of a stock that is exposed to many other brands, including Maserati:
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Read the dataset (assuming it's a CSV file)
+df <- read_csv("C:\\Users\\ines.ramos\\OneDrive - XRS Holding\\Documents\\projetos\\mercado\\stock prives 3y\\STOCK_US_STLA.csv")
+
+# Convert date column if needed (assuming there's a 'date' column)
+df$Date <- as.Date(df$Date, format = "%m/%d/%Y")
+
+
+df$Date <- as.Date(df$Date)
+
+
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Filter Data for Different Time Ranges
+df_3y <- df %>% filter(Date >= max(Date) - years(3))
+df_2y <- df %>% filter(Date >= max(Date) - years(2))
+df_6m <- df %>% filter(Date >= max(Date) - months(6))
+
+# Create Interactive Plotly Graph with Buttons
+plot <- plot_ly(df, x = ~Date, y = ~Close, type = 'scatter', mode = 'lines', name = "Full Data") %>%
+  layout(
+    title = "Stellantis N.V. Stock Price Trend (US Dollars)",
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "Close"),
+    updatemenus = list(
+      list(
+        buttons = list(
+          list(method = "restyle", args = list("x", list(df$Date), "y", list(df$Price)), label = "All Time"),
+          list(method = "restyle", args = list("x", list(df_3y$Date), "y", list(df_3y$Price)), label = "3Y"),
+          list(method = "restyle", args = list("x", list(df_2y$Date), "y", list(df_2y$Price)), label = "2Y"),
+          list(method = "restyle", args = list("x", list(df_6m$Date), "y", list(df_6m$Price)), label = "6M")
+        ),
+        direction = "down",
+        x = 0.1,
+        y = 1.15
+      )
+    )
+  )
+
+plot  # Display the interactive graph
+
+
+```
+
+### Mclaren
+
+No IPO (initial public offering) for Mclaren [until](https://carbuzz.com/news/theres-only-one-way-a-mclaren-ipo-will-happen/) they start making money.
+
+### VW
+
+Here is the price history of a stock that is exposed to many other brands, including **Bentley**:
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Read the dataset (assuming it's a CSV file)
+df <- read.csv("C:\\Users\\ines.ramos\\OneDrive - XRS Holding\\Documents\\projetos\\mercado\\stock prives 3y\\VOWG_STOCK_EUR.csv", sep = ",",           # Comma as field separator
+                 dec = ",",           # Comma as decimal separator
+                 header = TRUE,       # First row as header
+                 quote = "\" " )
+
+# Convert date column if needed (assuming there's a 'date' column)
+df$Data <- as.Date(df$Data, format = "%d.%m.%Y")
+
+
+df$Data <- as.Date(df$Data)
+
+
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Filter Data for Different Time Ranges
+df_3y <- df %>% filter(Data >= max(Data) - years(3))
+df_2y <- df %>% filter(Data >= max(Data) - years(2))
+df_6m <- df %>% filter(Data >= max(Data) - months(6))
+
+# Create Interactive Plotly Graph with Buttons
+plot <- plot_ly(df, x = ~Data, y = ~Último, type = 'scatter', mode = 'lines', name = "Full Data") %>%
+  layout(
+    title = "VWG Stock Price Trend (in EUR)",
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "Price"),
+    updatemenus = list(
+      list(
+        buttons = list(
+          list(method = "restyle", args = list("x", list(df$Data), "y", list(df$Último)), label = "All Time"),
+          list(method = "restyle", args = list("x", list(df_3y$Date), "y", list(df_3y$Último)), label = "3Y"),
+          list(method = "restyle", args = list("x", list(df_2y$Date), "y", list(df_2y$Último)), label = "2Y"),
+          list(method = "restyle", args = list("x", list(df_6m$Date), "y", list(df_6m$Último)), label = "6M")
+        ),
+        direction = "down",
+        x = 0.1,
+        y = 1.15
+      )
+    )
+  )
+
+plot  # Display the interactive graph
+
+
+```
+
+### Aston Martin
+
+Not to throw ashes into the fire, but February 25th was the press release date, where FY results of 2024 where exposed.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Read the dataset (assuming it's a CSV file)
+df <- read_csv("C:\\Users\\ines.ramos\\OneDrive - XRS Holding\\Documents\\projetos\\mercado\\stock prives 3y\\STOCK_UK_XLON_AstonML.csv")
+
+# Convert date column if needed (assuming there's a 'date' column)
+df$Date <- as.Date(df$Date, format = "%m/%d/%Y")
+
+
+df$Date <- as.Date(df$Date)
+
+
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+p <- ggplot(df, aes(x = Date, y = Close)) +
+  geom_line(color = "blue", linewidth = 1) +
+  labs(title = "Aston Martin Stock Price Trend (euros)",
+       x = "Date",
+       y = "Price") +
+  theme_minimal()
+
+# Convert to an interactive plot
+interactive_plot <- ggplotly(p)
+
+# Filter Data for Different Time Ranges
+df_3y <- df %>% filter(Date >= max(Date) - years(3))
+df_2y <- df %>% filter(Date >= max(Date) - years(2))
+df_6m <- df %>% filter(Date >= max(Date) - months(6))
+
+# Create Interactive Plotly Graph with Buttons
+plot <- plot_ly(df, x = ~Date, y = ~Close, type = 'scatter', mode = 'lines', name = "Full Data") %>%
+  layout(
+    title = "Aston Martin Stock Price Trend",
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "Price"),
+    updatemenus = list(
+      list(
+        buttons = list(
+          list(method = "restyle", args = list("x", list(df$Date), "y", list(df$Close)), label = "All Time"),
+          list(method = "restyle", args = list("x", list(df_3y$Date), "y", list(df_3y$Close)), label = "3Y"),
+          list(method = "restyle", args = list("x", list(df_2y$Date), "y", list(df_2y$Close)), label = "2Y"),
+          list(method = "restyle", args = list("x", list(df_6m$Date), "y", list(df_6m$Close)), label = "6M")
+        ),
+        direction = "down",
+        x = 0.1,
+        y = 1.15
+      )
+    )
+  )
+
+plot  # Display the interactive graph
+```
+
+## The Supply Chain
+
+##The Electrification
+
+## Other Factors
+
+To not say the supply chain and electric vehicles only bring difficulties, yet they are indeed chanlenges to embrace.. That some brands embraced better than others. Marketing comes as an important weight factor, that brands need to pay more and more attention to. On that note, personalization is a tendency manufacturers are drawn to follow, which also comes with obstacles. 
