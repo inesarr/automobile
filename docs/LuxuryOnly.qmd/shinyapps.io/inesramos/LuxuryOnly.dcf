@@ -1,0 +1,14 @@
+name: LuxuryOnly
+title: LuxuryOnly
+username: inesramos
+account: inesramos
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 14029673
+bundleId: 10050454
+url: https://inesramos.shinyapps.io/LuxuryOnly/
+version: 1
+quarto_version: 1.5.57
+quarto_engines: knitr
+asMultiple: FALSE
+asStatic: FALSE
